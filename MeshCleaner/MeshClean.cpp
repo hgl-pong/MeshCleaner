@@ -1,6 +1,7 @@
 #include "MeshClean.h"
 #include "IntersectUtils.h"
 #include "FTriangulator.h"
+#include "HalfEdge.h"
 template <typename T>
 void Emplace(std::unordered_set<T>& set, std::vector<T>& array) {
 	for (auto& data : array) {
@@ -15,7 +16,6 @@ void Erase(std::unordered_set<T>& set, std::unordered_set<T>& array) {
 	}
 }
 
-
 MeshClean::MeshClean(FMeshData& mesh)
 {
 	m_MeshData = mesh;
@@ -24,12 +24,11 @@ MeshClean::MeshClean(FMeshData& mesh)
 FMeshData MeshClean::Clean()
 {
 	FMeshData output;
+	FindAndFillHoles();
 	bool anyIntersect = CalculateIntersect();
 	if (anyIntersect)
 		Triangulate();
 	//_DeleteTrianglesInsideMesh();
-	FindAndFillHoles();
-
 	//anyIntersect = CalculateIntersect();
 	//if (anyIntersect)
 	//	Triangulate();
@@ -40,7 +39,123 @@ FMeshData MeshClean::Clean()
 
 void MeshClean::FindAndFillHoles()
 {
+	std::vector<std::vector<int>> holes;
 
+	//std::vector<FVec3> points;
+	//std::unordered_map<FVec3, int> pointsMap;
+	//for (auto& v : m_MeshData.m_Vertices) {
+	//	pointsMap.insert(std::make_pair(v.position, points.size()));
+	//	points.push_back(v.position);
+	//}
+	/*std::unordered_map<FEdge, int>edgeNeigborsCounter;
+	auto EmplaceEdge = [&](FEdge& edge) {
+		FEdge iedge = edge;
+		std::swap(iedge.v1, iedge.v2);
+		edgeNeigborsCounter.emplace(edge, 0).first->second++;
+		edgeNeigborsCounter.emplace(iedge, 0).first->second++;
+	};
+	for (auto& triangle : m_MeshData.m_Triangles) {
+		auto& v1 = m_MeshData.m_Vertices[triangle.v1].position;
+		auto& v2 = m_MeshData.m_Vertices[triangle.v2].position;
+		auto& v3 = m_MeshData.m_Vertices[triangle.v3].position;
+		FEdge edge1(v1, v2);
+		FEdge edge2(v2, v3);
+		FEdge edge3(v3, v1);
+		EmplaceEdge(edge1);
+		EmplaceEdge(edge2);
+		EmplaceEdge(edge3);
+	}
+	std::unordered_set<FEdge> edgeSet;
+	for (auto &edge:edgeNeigborsCounter) {
+		if (edge.second == 1)
+			edgeSet.emplace(edge.first);
+	}
+
+	std::unordered_map<FVec3, std::unordered_set<FVec3>>verticesNeighbors;
+	for (auto& edge : edgeSet) 
+	{
+		auto it = verticesNeighbors.find(edge.v1);
+		if (it != verticesNeighbors.end())
+			it->second.emplace(edge.v2);
+		else
+		{
+			std::unordered_set<FVec3> set;
+			set.emplace(edge.v2);
+			verticesNeighbors.emplace(edge.v1, set);
+		}
+	}
+	auto EraseEdge = [&](FEdge& edge) {
+		FEdge iedge(edge.v2, edge.v1);
+		edgeSet.erase(edge);
+		edgeSet.erase(iedge);
+		auto it1 = verticesNeighbors.find(edge.v1);
+		if (it1 != verticesNeighbors.end()) {
+			it1->second.erase(edge.v2);
+			if (it1->second.empty())
+				verticesNeighbors.erase(it1);
+		}
+
+		auto it2 = verticesNeighbors.find(iedge.v1);
+		if (it2 != verticesNeighbors.end()) {
+			it2->second.erase(iedge.v2);
+			if (it2->second.empty())
+				verticesNeighbors.erase(it2);
+		}
+	};
+
+	while (!edgeSet.empty()) {
+		std::vector<int> hole;
+		FEdge start = *edgeSet.begin();	
+		hole.push_back(pointsMap[start.v1]);
+		FEdge curr = start;
+		hole.push_back(pointsMap[curr.v2]);
+		if(verticesNeighbors.find(curr.v2) == verticesNeighbors.end()||verticesNeighbors.find(curr.v1)==verticesNeighbors.end())
+			EraseEdge(curr);
+
+		while (verticesNeighbors.find(curr.v2) != verticesNeighbors.end()) 
+		{		
+			FEdge newEdge(curr.v2, *verticesNeighbors.find(curr.v2)->second.begin());
+			EraseEdge(curr);
+			curr = newEdge;
+			hole.push_back(pointsMap[curr.v2]);
+			if (curr.v2 == start.v1 && hole.size() == 4) {
+				FTriangle newTriangle(hole[0], hole[1], hole[2], m_MeshData.m_Vertices.data());
+				m_MeshData.m_Triangles.push_back(newTriangle);
+				break;
+			}
+			if (curr.v2 == start.v1&&hole.size()>4) {
+				holes.push_back(hole);
+				break;
+			}
+		}
+
+	}*/
+
+	std::vector<FVec3> points;
+	std::unordered_map<FVec3, int> pointsMap;
+	for (auto& v : m_MeshData.m_Vertices) {
+		if(pointsMap.emplace(std::make_pair(v.position, points.size())).second)
+			points.push_back(v.position);
+	}
+	std::vector<int>indices;
+	
+	for (auto& triangle : m_MeshData.m_Triangles)
+	{
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v1].position]);
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v2].position]);
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v3].position]);
+	}
+	HalfEdgeMesh heMesh(points,indices);
+
+
+	holes = heMesh.FindHoles();
+	for (auto& hole : holes) {
+		std::vector<FIndex>triangles = FTriangulator::triangulate_polygon(points, hole);
+		for (int i = 0; i < triangles.size() / 3; i++) {
+			FTriangle newTriangle(hole[triangles[3 * i]], hole[triangles[3 * i + 1]], hole[triangles[3 * i + 2]], m_MeshData.m_Vertices.data());
+			m_MeshData.m_Triangles.push_back(newTriangle);
+		}
+	}
 }
 
 bool MeshClean::CalculateIntersect()

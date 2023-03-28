@@ -17,6 +17,8 @@ public:
 	bool ReTriangulate();
 	const std::vector<std::vector<FIndex>>& GetPolygons() const;
 	const std::vector<std::vector<FIndex>>& GetTriangles() const;
+
+	static std::vector<FIndex> triangulate_polygon(const std::vector<FVec3>& vertices, std::vector<int>& indices);
 private:
 	FVec3 m_projectAxis;
 	FVec3 m_projectOrigin;

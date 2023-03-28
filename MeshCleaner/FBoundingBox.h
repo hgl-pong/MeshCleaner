@@ -27,23 +27,19 @@ struct FVertex {
 
 struct FEdge
 {
-    FIndex v[2];
-
-    FIndex& start() {
-        return v[0];
+    FVec3 v1,v2;
+    FEdge(const FVec3& s, const FVec3& e) {
+        v1 = s;
+        v2 = e;
     }
-    const FIndex& start() const {
-        return v[0];
+    const FVec3& start() const {
+        return v1;
     }
 
-    FIndex& end() {
-        return v[1];
-    }
-    const FIndex& end() const { return v[1]; }
+    const FVec3& end() const { return v2; }
 
-    FEdge()
-    {
-        v[0] = v[1] = -1;
+    bool operator==(const FEdge& x) const {
+        return (v1 == x.v1 && v2 == x.v2);
     }
 };
 
@@ -141,6 +137,14 @@ namespace std {
         size_t operator ()(const FTriangle& x)const {
 
             FFLOAT key = HashFVec3(x.center.position) * (0.1 + HashFVec3(x.box.m_Size));
+            return hash<FFLOAT>()(key);
+        }
+    };
+
+    template<>
+    struct hash<FEdge> {
+        size_t operator ()(const FEdge& x)const {
+            FFLOAT key = HashFVec3(x.v1) * (0.1 + HashFVec3(x.v2));
             return hash<FFLOAT>()(key);
         }
     };

@@ -138,6 +138,7 @@
     <ClInclude Include="earcut.hpp" />
     <ClInclude Include="FBoundingBox.h" />
     <ClInclude Include="FTriangulator.h" />
+    <ClInclude Include="HalfEdge.h" />
     <ClInclude Include="IntersectUtils.h" />
     <ClInclude Include="IO.h" />
     <ClInclude Include="MeshClean.h" />

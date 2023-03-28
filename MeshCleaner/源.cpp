@@ -10,7 +10,7 @@ using namespace std;
 int main() {
 	int nums[3] = { 10,100,300 };
 	for (int j = 0; j < 1; j++) {
-		string file = "teapot";
+		string file = "test";
 		int num = nums[j];
 		string outputDir = "output.vtk";
 		string input = file + ".obj";

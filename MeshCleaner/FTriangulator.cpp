@@ -380,3 +380,17 @@ const std::vector<std::vector<FIndex>>& FTriangulator::GetTriangles() const
     return m_triangles;
 }
 
+std::vector<FIndex> FTriangulator::triangulate_polygon(const std::vector<FVec3>& vertices, std::vector<int>& indices) {
+    std::vector<std::vector<std::array<FFLOAT, 2>>> polygonAndHoles;
+
+    std::vector<std::array<FFLOAT, 2>> polygon;
+
+    for (const auto& index : indices) {
+        const auto& vertex = vertices[index];
+        polygon.push_back(std::array<FFLOAT, 2> { vertex.X, vertex.Y });
+    }
+    polygonAndHoles.push_back(polygon);
+    std::vector<FIndex> triangles = mapbox::earcut<FIndex>(polygonAndHoles);
+    return triangles;
+}
+
