@@ -7,39 +7,26 @@
 #include <map>
 typedef uint32_t FIndex;
 
-struct FVertex {
-    //FIndex index;
-    FVec3 position;
-    FVec3 normals;
-    FVec2 uv;
-    FVec4 tangent;
-    uint32_t diffuse;
-
-    bool operator==(const FVertex& v) const { 
-        return position == v.position && uv == v.uv;
-    }
-
-	bool operator<(const FVertex& v) const {
-		return position < v.position && uv < v.uv;
-	}
-
-};
 
 struct FEdge
 {
-    FVec3 v1,v2;
-    FEdge(const FVec3& s, const FVec3& e) {
-        v1 = s;
-        v2 = e;
+    FIndex v[2];
+
+    FIndex& start() {
+        return v[0];
     }
-    const FVec3& start() const {
-        return v1;
+    const FIndex& start() const {
+        return v[0];
     }
 
-    const FVec3& end() const { return v2; }
+    FIndex& end() {
+        return v[1];
+    }
+    const FIndex& end() const { return v[1]; }
 
-    bool operator==(const FEdge& x) const {
-        return (v1 == x.v1 && v2 == x.v2);
+    FEdge()
+    {
+        v[0] = v[1] = -1;
     }
 };
 
@@ -48,7 +35,6 @@ class FBoundingBox
 public:
     FBoundingBox();
     FBoundingBox(const std::vector<FVec3>& points);
-    FBoundingBox(const std::vector<FVertex>& points);
     FBoundingBox(FVec3& v0, FVec3& v1, FVec3& v2);
     ~FBoundingBox();
 
@@ -92,18 +78,18 @@ public:
 struct FTriangle
 {
     int v1,v2,v3;
-    FVertex center;
+    int meshindex=0;
     FBoundingBox box;
 
 
     FTriangle() { v1 = 0, v2 = 0, v3 = 0; };
-	FTriangle(const int& x, const int& y,const int& z,  FVertex* points)
+	FTriangle(const int& x, const int& y,const int& z, FVec3* points,int index)
     {
 		v1 = x;
 		v2 = y;
 		v3 = z;
-        center.position = (points[x].position+ points[y].position+ points[z].position) / 3;
-		box = FBoundingBox(points[x].position, points[y].position, points[z].position);
+        meshindex = index;
+		box = FBoundingBox(points[x], points[y], points[z]);
 	}
 
     bool operator ==(const FTriangle& triangle) const;
@@ -116,7 +102,6 @@ struct FTriangle
         v1 = triangle.v1;
         v2 = triangle.v2;
         v3 = triangle.v3;
-        center = triangle.center;
         box = triangle.box;
         return *const_cast<FTriangle*>(this);
     }
@@ -124,36 +109,21 @@ struct FTriangle
 
 namespace std {
 
-    template<>
-    struct hash<FVertex> {
-        size_t operator ()(const FVertex& x) const {
-            FFLOAT key = HashFVec3(x.position) * (0.1 + HashFVec2(x.uv));
-            return hash<FFLOAT>()(key);
-        }
-    };
 
     template<>
     struct hash<FTriangle> {
         size_t operator ()(const FTriangle& x)const {
 
-            FFLOAT key = HashFVec3(x.center.position) * (0.1 + HashFVec3(x.box.m_Size));
-            return hash<FFLOAT>()(key);
-        }
-    };
-
-    template<>
-    struct hash<FEdge> {
-        size_t operator ()(const FEdge& x)const {
-            FFLOAT key = HashFVec3(x.v1) * (0.1 + HashFVec3(x.v2));
+            FFLOAT key = HashFVec3(FVec3(x.v1,x.v2,x.v3))* HashFVec3(FVec3(x.v2, x.v3, x.v1))* HashFVec3(FVec3(x.v3, x.v1, x.v2));
             return hash<FFLOAT>()(key);
         }
     };
 }
 
-static FFLOAT DistanceSqr(const FTriangle& triangle ,std::vector<FVertex>& vBuffer,const FVec3& p) {
-    FVec3& v0 = vBuffer.at(triangle.v1).position;
-    FVec3& v1 = vBuffer.at(triangle.v2).position;
-    FVec3& v2 = vBuffer.at(triangle.v3).position;
+static FFLOAT DistanceSqr(const FTriangle& triangle ,std::vector<FVec3>& vBuffer,const FVec3& p) {
+    FVec3& v0 = vBuffer.at(triangle.v1);
+    FVec3& v1 = vBuffer.at(triangle.v2);
+    FVec3& v2 = vBuffer.at(triangle.v3);
     FFLOAT d01 = v0.Distance(v1);
     FFLOAT d12 = v1.Distance(v2);
     FFLOAT d20 = v2.Distance(v0);
@@ -171,7 +141,7 @@ static FFLOAT DistanceSqr(const FTriangle& triangle ,std::vector<FVertex>& vBuff
 }
 struct FMeshData {
     std::vector<FTriangle> m_Triangles;
-    std::vector<FVertex> m_Vertices;
+    std::vector<FVec3> m_Vertices;
 };
 
 static bool WeakBoundingBoxIntersection(const FBoundingBox& aBox, const FBoundingBox& bBox)
@@ -185,42 +155,42 @@ static bool WeakBoundingBoxIntersection(const FBoundingBox& aBox, const FBoundin
 	return true;
 }
 
-static FVec3 Normal(FTriangle& triangle,FVertex* vBuffer) {
-    return Normal(vBuffer[triangle.v1].position, vBuffer[triangle.v2].position, vBuffer[triangle.v3].position);
+static FVec3 Normal(FTriangle& triangle, FVec3* vBuffer) {
+    return Normal(vBuffer[triangle.v1], vBuffer[triangle.v2], vBuffer[triangle.v3]);
 }
 
 static FFLOAT CalCulateVolume(FMeshData& meshdata) { 
     FFLOAT volume = 0;
     for (auto& tri : meshdata.m_Triangles)
     {
-        const FVec3& a = meshdata.m_Vertices[tri.v1].position;
-        const FVec3& b = meshdata.m_Vertices[tri.v2].position;
-        const FVec3& c = meshdata.m_Vertices[tri.v3].position;
+        const FVec3& a = meshdata.m_Vertices[tri.v1];
+        const FVec3& b = meshdata.m_Vertices[tri.v2];
+        const FVec3& c = meshdata.m_Vertices[tri.v3];
 
         volume += (a.X * b.Y * c.Z - a.X * b.Z * c.Y - a.Y * b.X * c.Z + a.Y * b.Z * c.X + a.Z * b.X * c.Y - a.Z * b.Y * c.X);
     }
     return (1.0f / 6.0f) * std::abs(volume);
 }
 
-static FVec3 CalCulateNormals(FMeshData& meshdata) {
-    FVec3 surfaceNormal;
-    for (auto& v : meshdata.m_Vertices)
-        v.normals = FVec3();
-    for (auto& triangle:meshdata.m_Triangles) {
-        FVec3 v01 = meshdata.m_Vertices[triangle.v2].position - meshdata.m_Vertices[triangle.v1].position;
-        FVec3 v02 = meshdata.m_Vertices[triangle.v3].position - meshdata.m_Vertices[triangle.v1].position;
-        FVec3 normal = v01.Cross(v02).Normalize();
-
-        meshdata.m_Vertices[triangle.v1].normals = meshdata.m_Vertices[triangle.v1].normals + normal;
-        meshdata.m_Vertices[triangle.v2].normals = meshdata.m_Vertices[triangle.v2].normals + normal;
-        meshdata.m_Vertices[triangle.v3].normals = meshdata.m_Vertices[triangle.v3].normals + normal;
-        surfaceNormal += normal;
-    }
-    for (auto& v : meshdata.m_Vertices)
-        v.normals.Normalize();
-    surfaceNormal.Normalize();
-    return surfaceNormal;
-}
+//static FVec3 CalCulateNormals(FMeshData& meshdata) {
+//    FVec3 surfaceNormal;
+//    for (auto& v : meshdata.m_Vertices)
+//        v.normals = FVec3();
+//    for (auto& triangle:meshdata.m_Triangles) {
+//        FVec3 v01 = meshdata.m_Vertices[triangle.v2].position - meshdata.m_Vertices[triangle.v1].position;
+//        FVec3 v02 = meshdata.m_Vertices[triangle.v3].position - meshdata.m_Vertices[triangle.v1].position;
+//        FVec3 normal = v01.Cross(v02).Normalize();
+//
+//        meshdata.m_Vertices[triangle.v1].normals = meshdata.m_Vertices[triangle.v1].normals + normal;
+//        meshdata.m_Vertices[triangle.v2].normals = meshdata.m_Vertices[triangle.v2].normals + normal;
+//        meshdata.m_Vertices[triangle.v3].normals = meshdata.m_Vertices[triangle.v3].normals + normal;
+//        surfaceNormal += normal;
+//    }
+//    for (auto& v : meshdata.m_Vertices)
+//        v.normals.Normalize();
+//    surfaceNormal.Normalize();
+//    return surfaceNormal;
+//}
 
 static FVec2 RemapTextureCoords(FVec2& texCoords)
 {

@@ -10,7 +10,7 @@ using namespace std;
 int main() {
 	int nums[3] = { 10,100,300 };
 	for (int j = 0; j < 1; j++) {
-		string file = "test";
+		string file = "teapot";
 		int num = nums[j];
 		string outputDir = "output.vtk";
 		string input = file + ".obj";
@@ -21,11 +21,11 @@ int main() {
 			cout << "fail to open the file" << endl;
 			return -1;
 		}
-		readTri(is, meshA);
+		readTri(is, meshA,1);
 		FBoundingBox box(meshA.m_Vertices);
 
 		FVec3 moffset = box.m_Center;
-		FFLOAT mscale = std::max(box.m_Size.X, std::max(box.m_Size.Y, box.m_Size.Z));
+		FFLOAT mscale = 1/*std::max(box.m_Size.X, std::max(box.m_Size.Y, box.m_Size.Z))*/;
 		FFLOAT mscalefactor = 1 / mscale;
 		TransformMesh(meshA, moffset, mscalefactor);
 

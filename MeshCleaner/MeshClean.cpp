@@ -24,11 +24,11 @@ MeshClean::MeshClean(FMeshData& mesh)
 FMeshData MeshClean::Clean()
 {
 	FMeshData output;
-	FindAndFillHoles();
+	//FindAndFillHoles();
 	bool anyIntersect = CalculateIntersect();
 	if (anyIntersect)
 		Triangulate();
-	//_DeleteTrianglesInsideMesh();
+	_DeleteTrianglesInsideMesh();
 	//anyIntersect = CalculateIntersect();
 	//if (anyIntersect)
 	//	Triangulate();
@@ -134,28 +134,28 @@ void MeshClean::FindAndFillHoles()
 	std::vector<FVec3> points;
 	std::unordered_map<FVec3, int> pointsMap;
 	for (auto& v : m_MeshData.m_Vertices) {
-		if(pointsMap.emplace(std::make_pair(v.position, points.size())).second)
-			points.push_back(v.position);
+		if(pointsMap.emplace(std::make_pair(v, points.size())).second)
+			points.push_back(v);
 	}
 	std::vector<int>indices;
 	
 	for (auto& triangle : m_MeshData.m_Triangles)
 	{
-		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v1].position]);
-		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v2].position]);
-		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v3].position]);
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v1]]);
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v2]]);
+		indices.push_back(pointsMap[m_MeshData.m_Vertices[triangle.v3]]);
 	}
 	HalfEdgeMesh heMesh(points,indices);
 
 
 	holes = heMesh.FindHoles();
-	for (auto& hole : holes) {
-		std::vector<FIndex>triangles = FTriangulator::triangulate_polygon(points, hole);
-		for (int i = 0; i < triangles.size() / 3; i++) {
-			FTriangle newTriangle(hole[triangles[3 * i]], hole[triangles[3 * i + 1]], hole[triangles[3 * i + 2]], m_MeshData.m_Vertices.data());
-			m_MeshData.m_Triangles.push_back(newTriangle);
-		}
-	}
+	//for (auto& hole : holes) {
+	//	std::vector<FIndex>triangles = FTriangulator::triangulate_polygon(points, hole);
+	//	for (int i = 0; i < triangles.size() / 3; i++) {
+	//		FTriangle newTriangle(hole[triangles[3 * i]], hole[triangles[3 * i + 1]], hole[triangles[3 * i + 2]], m_MeshData.m_Vertices.data());
+	//		m_MeshData.m_Triangles.push_back(newTriangle);
+	//	}
+	//}
 }
 
 bool MeshClean::CalculateIntersect()
@@ -223,9 +223,9 @@ bool MeshClean::CalculateIntersect()
 void MeshClean::Triangulate()
 {
 	for (auto triA : m_IntersectNeighbors) {
-		std::unordered_map<FIndex, FVertex> pointsMap;
-		std::vector<FVertex> points;
-		std::unordered_map<FVertex, FIndex> indexMap;
+		std::unordered_map<FIndex, FVec3> pointsMap;
+		std::vector<FVec3> points;
+		std::unordered_map<FVec3, FIndex> indexMap;
 		std::unordered_map<FIndex, std::unordered_set<FIndex>> edges;
 		std::vector<FTriangle> triangles;
 		for (auto triB : triA.second) {
@@ -233,8 +233,8 @@ void MeshClean::Triangulate()
 			auto it = m_IntersectMap.find(pair);
 			if (it == m_IntersectMap.end())
 				continue;
-			FVertex& keyA = it->second.first;
-			FVertex& keyB = it->second.second;
+			FVec3& keyA = it->second.first;
+			FVec3& keyB = it->second.second;
 			auto it1 = indexMap.find(keyA);
 			auto it2 = indexMap.find(keyB);
 			FIndex first, second;
@@ -306,8 +306,8 @@ void MeshClean::_PushInResultBuffer(FMeshData& output) {
 	}
 
 	output.m_Vertices.resize(size + m_MeshData.m_Vertices.size());
-	memcpy_s(output.m_Vertices.data() + size, sizeof(FVertex) * m_MeshData.m_Vertices.size(),
-		m_MeshData.m_Vertices.data(), sizeof(FVertex) * m_MeshData.m_Vertices.size());
+	memcpy_s(output.m_Vertices.data() + size, sizeof(FVec3) * m_MeshData.m_Vertices.size(),
+		m_MeshData.m_Vertices.data(), sizeof(FVec3) * m_MeshData.m_Vertices.size());
 }
 
 void MeshClean::_DeleteTrianglesInsideMesh()
@@ -317,11 +317,13 @@ void MeshClean::_DeleteTrianglesInsideMesh()
 	std::unordered_set<FTriangle> triangleToDelete;
 
 	for (auto& triangleB : m_MeshSet) {
-		const auto& center = triangleB.center.position;
+		const auto& center = (m_MeshData.m_Vertices[triangleB.v1]+
+			m_MeshData.m_Vertices[triangleB.v2]+
+			m_MeshData.m_Vertices[triangleB.v3])/3;
 
-		FVec3 normal = Normal(m_MeshData.m_Vertices[triangleB.v1].position,
-			m_MeshData.m_Vertices[triangleB.v2].position,
-			m_MeshData.m_Vertices[triangleB.v3].position) * 100;
+		FVec3 normal = Normal(m_MeshData.m_Vertices[triangleB.v1],
+			m_MeshData.m_Vertices[triangleB.v2],
+			m_MeshData.m_Vertices[triangleB.v3]) * 1000;
 
 		bool isOut = true;
 		if (pointsInMeshA.find(center) != pointsInMeshA.end())

@@ -7,18 +7,16 @@
 class FTriangulator
 {
 public:
-	static bool Triangulating(FTriangle& triangle, std::vector<FVertex>& vBuffer, std::vector<FVertex>& points,std::unordered_map<FIndex, std::unordered_set<FIndex>>& neighborMapFrom3,std::vector<FTriangle>&triangles);
+	static bool Triangulating(FTriangle& triangle, std::vector<FVec3>& vBuffer, std::vector<FVec3>& points,std::unordered_map<FIndex, std::unordered_set<FIndex>>& neighborMapFrom3,std::vector<FTriangle>&triangles);
 private:
-	FTriangulator(std::vector<FVertex>& points);
-	FTriangulator(FTriangle& triangles, std::vector<FVertex>& vBuffer);
+	FTriangulator(std::vector<FVec3>& points);
+	FTriangulator(FTriangle& triangles, std::vector<FVec3>& vBuffer);
 public:
-	void SetEdges(std::vector<FVertex>& points,
+	void SetEdges(std::vector<FVec3>& points,
 		std::unordered_map<FIndex, std::unordered_set<FIndex>>* neighborMapFrom3);
 	bool ReTriangulate();
 	const std::vector<std::vector<FIndex>>& GetPolygons() const;
 	const std::vector<std::vector<FIndex>>& GetTriangles() const;
-
-	static std::vector<FIndex> triangulate_polygon(const std::vector<FVec3>& vertices, std::vector<int>& indices);
 private:
 	FVec3 m_projectAxis;
 	FVec3 m_projectOrigin;
@@ -40,24 +38,24 @@ private:
 	void Triangulate();
 };
 
-inline std::vector<FVec2> Project(std::vector<FVertex>polygon, FVec3& normal, FVec3& axis, FVec3& origin) {
+inline std::vector<FVec2> Project(std::vector<FVec3>polygon, FVec3& normal, FVec3& axis, FVec3& origin) {
 	std::vector<FVec2>result;
 
 	FVec3 perpendicularAxis = normal.Cross(axis);
 	for (auto& it:polygon) {
-		FVec3 direction = it.position - origin;
+		FVec3 direction = it - origin;
 		result.push_back(FVec2(direction.Dot(axis), direction.Dot(perpendicularAxis)));
 	}
 
 	return result;
 }
 
-inline std::vector<FVec2> Project(FVertex*polygon, FVec3& normal, FVec3& axis, FVec3& origin) {
+inline std::vector<FVec2> Project(FVec3*polygon, FVec3& normal, FVec3& axis, FVec3& origin) {
 	std::vector<FVec2>result;
 
 	FVec3 perpendicularAxis = normal.Cross(axis);
 	for (int i=0; i < 3;i++) {
-		FVec3 direction = polygon[i].position - origin;
+		FVec3 direction = polygon[i] - origin;
 		result.push_back(FVec2(direction.Dot(axis), direction.Dot(perpendicularAxis)));
 	}
 

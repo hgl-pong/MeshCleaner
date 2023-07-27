@@ -4,7 +4,7 @@
 #include "earcut.hpp"
 #include <array>
 #include "IO.h"
-bool FTriangulator::Triangulating(FTriangle& triangle,std::vector<FVertex>&vBuffer, std::vector<FVertex>& points, std::unordered_map<FIndex, std::unordered_set<FIndex>>& neighborMapFrom3, std::vector<FTriangle>& triangles)
+bool FTriangulator::Triangulating(FTriangle& triangle,std::vector<FVec3>&vBuffer, std::vector<FVec3>& points, std::unordered_map<FIndex, std::unordered_set<FIndex>>& neighborMapFrom3, std::vector<FTriangle>& triangles)
 {
     FTriangulator triangulator(triangle,vBuffer);
  //   std::vector<FVertex> pointsBuffer;
@@ -27,37 +27,37 @@ bool FTriangulator::Triangulating(FTriangle& triangle,std::vector<FVertex>&vBuff
         tri[0] = tri[0] + size;
         tri[1] = tri[1] + size;
         tri[2] = tri[2] + size;
-        FTriangle newTriangle(tri[0], tri[1], tri[2], vBuffer.data());
-        auto d = normal.Dot(Normal(newTriangle,vBuffer.data()));
-        if (d < 0) {
-            std::swap(newTriangle.v2, newTriangle.v3);
-        }
+        FTriangle newTriangle(tri[0], tri[1], tri[2], vBuffer.data(),triangle.meshindex);
+        //auto d = normal.Dot(Normal(newTriangle,vBuffer.data()));
+        //if (d < 0) {
+        //    std::swap(newTriangle.v2, newTriangle.v3);
+        //}
         triangles.push_back(newTriangle);
     }
 
 }
 
-FTriangulator::FTriangulator(FTriangle& triangle, std::vector<FVertex>& vBuffer)
+FTriangulator::FTriangulator(FTriangle& triangle, std::vector<FVec3>& vBuffer)
 {
     //FVertex* points = triangle.v;
-	m_projectNormal = (vBuffer[triangle.v2].position - vBuffer[triangle.v1].position).Cross(vBuffer[triangle.v3].position - vBuffer[triangle.v1].position).Normalize();
-	m_projectAxis = (vBuffer[triangle.v2].position - vBuffer[triangle.v1].position).Normalize();
-	m_projectOrigin = vBuffer[triangle.v1].position;
+	m_projectNormal = (vBuffer[triangle.v2] - vBuffer[triangle.v1]).Cross(vBuffer[triangle.v3] - vBuffer[triangle.v1]).Normalize();
+	m_projectAxis = (vBuffer[triangle.v2] - vBuffer[triangle.v1]).Normalize();
+	m_projectOrigin = vBuffer[triangle.v1];
 
 	//m_points = Project(points, m_projectNormal, m_projectAxis, m_projectOrigin);
 }
 
-FTriangulator::FTriangulator( std::vector<FVertex>& points) 
+FTriangulator::FTriangulator( std::vector<FVec3>& points)
 {   
 
-    m_projectNormal= (points[1].position - points[0].position).Cross(points[2].position - points[0].position).Normalize();
-    m_projectAxis = (points[1].position - points[0].position).Normalize();
-    m_projectOrigin = points[0].position;
+    m_projectNormal= (points[1] - points[0]).Cross(points[2] - points[0]).Normalize();
+    m_projectAxis = (points[1] - points[0]).Normalize();
+    m_projectOrigin = points[0];
 
     //m_points=Project(points.data(),m_projectNormal, m_projectAxis, m_projectOrigin);
 }
 
-void FTriangulator::SetEdges(std::vector<FVertex>& points,
+void FTriangulator::SetEdges(std::vector<FVec3>& points,
     std::unordered_map<FIndex, std::unordered_set<FIndex>>* neighborMapFrom3)
 {
     m_points= Project(points, m_projectNormal, m_projectAxis, m_projectOrigin);
@@ -378,19 +378,5 @@ const std::vector<std::vector<FIndex>>& FTriangulator::GetPolygons() const
 const std::vector<std::vector<FIndex>>& FTriangulator::GetTriangles() const
 {
     return m_triangles;
-}
-
-std::vector<FIndex> FTriangulator::triangulate_polygon(const std::vector<FVec3>& vertices, std::vector<int>& indices) {
-    std::vector<std::vector<std::array<FFLOAT, 2>>> polygonAndHoles;
-
-    std::vector<std::array<FFLOAT, 2>> polygon;
-
-    for (const auto& index : indices) {
-        const auto& vertex = vertices[index];
-        polygon.push_back(std::array<FFLOAT, 2> { vertex.X, vertex.Y });
-    }
-    polygonAndHoles.push_back(polygon);
-    std::vector<FIndex> triangles = mapbox::earcut<FIndex>(polygonAndHoles);
-    return triangles;
 }
 

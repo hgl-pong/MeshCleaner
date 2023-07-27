@@ -3,39 +3,11 @@
 #include "FBoundingBox.h"
 #include <unordered_map>
 #include <unordered_set>
-typedef std::pair<FVertex, FVertex> IntersectEdge;
-class FTriangleKey {
-public:
-	FTriangleKey() = delete;
-	FTriangleKey(FTriangle& triangle, FVertex* vBuffer) {
-		v1 = vBuffer[triangle.v1].position;
-		v2 = vBuffer[triangle.v2].position;
-		v3 = vBuffer[triangle.v3].position;
-		box = triangle.box;
-		center = triangle.center.position;
-	}
-	bool operator ==(const FTriangleKey& tri)const {
-		return box.m_Min == tri.box.m_Min && box.m_Max == tri.box.m_Max && center == tri.center;
-	}
-public:
-	FVec3 v1, v2, v3;
-	FBoundingBox box;
-	FVec3 center;
-};
+typedef std::pair<FVec3, FVec3> IntersectEdge;
 
-namespace std {
-	template<>
-	struct hash<FTriangleKey> {
-		size_t operator ()(const FTriangleKey& x)const {
-
-			std::string key = to_string(hash<FVec3>()(x.center)) + to_string(hash<FVec3>()(x.box.m_Min)) + to_string(hash<FVec3>()(x.box.m_Max));
-			return hash<string>()(key);
-		}
-	};
-}
 class TrianglePair {
 public:
-	TrianglePair(FTriangle& triangleA, FTriangle& triangleB)
+	TrianglePair(const FTriangle& triangleA, const FTriangle& triangleB)
 		:m_TriangleA(triangleA),
 		m_TriangleB(triangleB)
 	{
@@ -65,7 +37,6 @@ namespace std {
 	};
 }
 
-
 struct Hole 
 {
 
@@ -89,16 +60,16 @@ private:
 	std::unordered_map<FTriangle, std::unordered_set<FTriangle>> m_IntersectNeighbors;
 };
 
-inline bool HasIntersect(FTriangle& triangleA, FTriangle& triangleB, FVertex* vBuffer)
+inline bool HasIntersect(FTriangle& triangleA, FTriangle& triangleB, FVec3* vBuffer)
 {
 	std::unordered_set<FVec3> set;
-	set.emplace(vBuffer[triangleA.v1].position);
-	set.emplace(vBuffer[triangleA.v2].position);
-	set.emplace(vBuffer[triangleA.v3].position);
+	set.emplace(vBuffer[triangleA.v1]);
+	set.emplace(vBuffer[triangleA.v2]);
+	set.emplace(vBuffer[triangleA.v3]);
 	int time = 0;
-	auto it1 = set.find(vBuffer[triangleB.v1].position);
-	auto it2 = set.find(vBuffer[triangleB.v2].position);
-	auto it3 = set.find(vBuffer[triangleB.v3].position);
+	auto it1 = set.find(vBuffer[triangleB.v1]);
+	auto it2 = set.find(vBuffer[triangleB.v2]);
+	auto it3 = set.find(vBuffer[triangleB.v3]);
 	//if (it1 != set.end())
 	//	time++;
 	//if (it2 != set.end())
@@ -112,24 +83,22 @@ inline bool HasIntersect(FTriangle& triangleA, FTriangle& triangleB, FVertex* vB
 static void TransformMesh(FMeshData& meshdata, const FVec3& moffset, const FFLOAT& mscale) {
 	if (mscale <= 1) {
 		for (auto& tri : meshdata.m_Triangles) {
-			tri.center.position = (tri.center.position - moffset) * mscale;
 			tri.box.m_Max = (tri.box.m_Max - moffset) * mscale;
 			tri.box.m_Min = (tri.box.m_Min - moffset) * mscale;
 			tri.box.m_Size *= mscale;
 		}
 		for (auto& v : meshdata.m_Vertices) {
-			v.position = (v.position - moffset) * mscale;
+			v = (v - moffset) * mscale;
 		}
 	}
 	else {
 		for (auto& tri : meshdata.m_Triangles) {
-			tri.center.position = tri.center.position * mscale - moffset;
 			tri.box.m_Max = tri.box.m_Max* mscale - moffset ;
 			tri.box.m_Min = tri.box.m_Min* mscale - moffset ;
 			tri.box.m_Size *= mscale;
 		}
 		for (auto& v : meshdata.m_Vertices) {
-			v.position = v.position* mscale - moffset ;
+			v = v* mscale - moffset ;
 		}
 	}
 }

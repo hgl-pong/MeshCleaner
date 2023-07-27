@@ -16,8 +16,8 @@
 #include"vtk.h"
 using namespace std;
 
-static int readTri(ifstream& is, FMeshData& mesh, FFLOAT scale = 1, FVec3 offset = {0,0,0}) {
-    vector<FVertex> points;
+static int readTri(ifstream& is, FMeshData& mesh, int index, FFLOAT scale = 1, FVec3 offset = { 0,0,0 }) {
+    vector<FVec3> points;
     vector<FTriangle> triangles;
     vector<FEdge> edges;
     int pcount = 0, tricount = 0;
@@ -36,11 +36,11 @@ static int readTri(ifstream& is, FMeshData& mesh, FFLOAT scale = 1, FVec3 offset
             break;
         case 'v':
         {
-            FVertex p;
+            FVec3 p;
             //p.index = pcount;
-            is >> p.position.X >> p.position.Y >> p.position.Z;
+            is >> p.X >> p.Y >> p.Z;
             is.get();
-            p.position = (p.position+offset) * scale;
+            p = (p + offset) * scale;
             points.push_back(p);
             pcount++;
             //points[pcount++] = p;
@@ -48,7 +48,7 @@ static int readTri(ifstream& is, FMeshData& mesh, FFLOAT scale = 1, FVec3 offset
         }
         case 'f':
         {
-             
+
             int x, y, z;
             is >> x >> y >> z;
             is.get();
@@ -57,7 +57,7 @@ static int readTri(ifstream& is, FMeshData& mesh, FFLOAT scale = 1, FVec3 offset
                 cout << "maxSize=" << points.size() << endl;
                 exit(-1);
             }
-            FTriangle triangle = FTriangle(x - 1, y - 1, z - 1, points.data());
+            FTriangle triangle = FTriangle(x - 1, y - 1, z - 1, points.data(), index);
             triangles.push_back(triangle);
             tricount++;
             //triangles[tricount++] = triangle;
@@ -85,27 +85,27 @@ static int readTri(ifstream& is, FMeshData& mesh, FFLOAT scale = 1, FVec3 offset
     return 0;
 }
 
-static int writeVtk(string path, vector<FVertex> points, vector<FTriangle> triangles) {
+static int writeVtk(string path, vector<FVec3> points, vector<FTriangle> triangles) {
     if (points.empty())
         return 0;
     ofstream of("result.obj");
     vector<float > nodes;
     vector<unsigned int> faces;
     for (FIndex i = 0; i < points.size(); i++) {
-        of << "v " << std::setprecision(4) << points[i].position.X << " " << points[i].position.Y << " " << points[i].position.Z << endl;
-        nodes.push_back(points[i].position.X);
-        nodes.push_back(points[i].position.Y);
-        nodes.push_back(points[i].position.Z);
+        of << "v " << std::setprecision(4) << points[i].X << " " << points[i].Y << " " << points[i].Z << endl;
+        nodes.push_back(points[i].X);
+        nodes.push_back(points[i].Y);
+        nodes.push_back(points[i].Z);
     }
     of << endl;
     for (FIndex i = 0; i < triangles.size(); i++) {
         faces.push_back(triangles[i].v1);
         faces.push_back(triangles[i].v2);
         faces.push_back(triangles[i].v3);
-        int v1 = triangles[i].v1+1;
-        int v2 = triangles[i].v2+1;
-        int v3 = triangles[i].v3+1;
-		of << "f " << v1 << " " << v2 << " " << v3 << endl;
+        int v1 = triangles[i].v1 + 1;
+        int v2 = triangles[i].v2 + 1;
+        int v3 = triangles[i].v3 + 1;
+        of << "f " << v1 << " " << v2 << " " << v3 << endl;
 
     }
     of.close();

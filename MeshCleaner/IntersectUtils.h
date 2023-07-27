@@ -13,12 +13,12 @@ namespace std {
 	template<>
 	struct hash<DetectPair> {
 		size_t operator ()(const DetectPair& x) const {
-			FFLOAT key = HashFVec3(x.first) * (0.1 + x.second);
-			return hash<FFLOAT>()(key);
-
+			std::string key = std::to_string(HashFVec3(x.first)) + std::to_string(x.second);
+			return hash<std::string>()(key);
 		}
 	};
 }
+
 
 enum TestDirection
 {
@@ -43,17 +43,17 @@ static const std::vector<FVec3> g_testAxisList = {
 class IntersectUtils {
 public:
 
-	static bool TrianglesIntersect(FTriangle& triangleA, FTriangle& triangleB,std::vector<FVertex>&vBufferA,std::vector<FVertex>&vBufferB, std::pair<FVertex, FVertex>*& edge) {
+	static bool TrianglesIntersect(const FTriangle& triangleA, const FTriangle& triangleB, std::vector<FVec3>& vBufferA, std::vector<FVec3>& vBufferB, std::pair<FVec3, FVec3>*& edge) {
 		int coplanar = 0;
 		edge = nullptr;
 		FVec3 posA, posB;
 		if (!tri_tri_intersection_test_3d(
-			(FFLOAT*)(&vBufferA[triangleA.v1].position),
-			(FFLOAT*)(&vBufferA[triangleA.v2].position),
-			(FFLOAT*)(&vBufferA[triangleA.v3].position),
-			(FFLOAT*)(&vBufferB[triangleB.v1].position),
-			(FFLOAT*)(&vBufferB[triangleB.v2].position),
-			(FFLOAT*)(&vBufferB[triangleB.v3].position),
+			(FFLOAT*)(&vBufferA[triangleA.v1]),
+			(FFLOAT*)(&vBufferA[triangleA.v2]),
+			(FFLOAT*)(&vBufferA[triangleA.v3]),
+			(FFLOAT*)(&vBufferB[triangleB.v1]),
+			(FFLOAT*)(&vBufferB[triangleB.v2]),
+			(FFLOAT*)(&vBufferB[triangleB.v3]),
 			&coplanar,
 			(FFLOAT*)(&posA),
 			(FFLOAT*)(&posB))) {
@@ -63,34 +63,19 @@ public:
 			return false;
 		if (posA == posB)
 			return false;
-		edge = new std::pair<FVertex, FVertex>[2];
-		edge[0].first.position = posA;
-		edge[0].second.position = posB;
+		edge = new std::pair<FVec3, FVec3>[2];
+		edge[0].first = posA;
+		edge[0].second = posB;
 
-		edge[1].first.position = posA;
-		edge[1].second.position = posB;
+		edge[1].first = posA;
+		edge[1].second = posB;
 
-		if(!(vBufferA[triangleA.v1].uv==FVec2(0,0)&& vBufferA[triangleA.v2].uv == FVec2(0, 0)&& vBufferA[triangleA.v3].uv == FVec2(0, 0)))
-		CalcluateUV(triangleA,vBufferA, edge[0]);
-		if (!(vBufferB[triangleB.v1].uv == FVec2(0, 0) && vBufferB[triangleB.v2].uv == FVec2(0, 0) && vBufferB[triangleB.v3].uv == FVec2(0, 0)))
-		CalcluateUV(triangleB,vBufferB, edge[1]);
+		//if(!(vBufferA[triangleA.v1].uv==FVec2(0,0)&& vBufferA[triangleA.v2].uv == FVec2(0, 0)&& vBufferA[triangleA.v3].uv == FVec2(0, 0)))
+		//CalcluateUV(triangleA,vBufferA, edge[0]);
+		//if (!(vBufferB[triangleB.v1].uv == FVec2(0, 0) && vBufferB[triangleB.v2].uv == FVec2(0, 0) && vBufferB[triangleB.v3].uv == FVec2(0, 0)))
+		//CalcluateUV(triangleB,vBufferB, edge[1]);
 	}
 
-
-	static void CalcluateUV(FTriangle& triangle, std::vector<FVertex>& vBuffer, std::pair<FVertex, FVertex>& edge) {
-		FFLOAT a, b, c;
-		FFLOAT total=1/ Area(vBuffer[triangle.v1].position, vBuffer[triangle.v2].position, vBuffer[triangle.v3].position);
-		a = Area(vBuffer[triangle.v2].position, vBuffer[triangle.v3].position, edge.first.position) * total;
-		b = Area(vBuffer[triangle.v1].position, vBuffer[triangle.v3].position, edge.first.position) * total;
-		c = 1 - a - b;
-
-		edge.first.uv = FVec2(a * vBuffer[triangle.v1].uv.X + b * vBuffer[triangle.v2].uv.X + c * vBuffer[triangle.v3].uv.X, a * vBuffer[triangle.v1].uv.Y + b * vBuffer[triangle.v2].uv.Y + c * vBuffer[triangle.v3].uv.Y);
-
-		a = Area(vBuffer[triangle.v2].position, vBuffer[triangle.v3].position, edge.second.position) * total;
-		b = Area(vBuffer[triangle.v1].position, vBuffer[triangle.v3].position, edge.second.position) * total;
-		c = 1 - a - b;
-		edge.second.uv = FVec2(a * vBuffer[triangle.v1].uv.X + b * vBuffer[triangle.v2].uv.X + c * vBuffer[triangle.v3].uv.X, a * vBuffer[triangle.v1].uv.Y + b * vBuffer[triangle.v2].uv.Y + c * vBuffer[triangle.v3].uv.Y);
-	}
 
 	static bool IsInMesh(FMeshData&meshdata, FVec3 point, const FVec3& testAxis)
 	{
@@ -107,9 +92,9 @@ public:
 				continue;
 
 			std::vector<FVec3> trianglePositions = {
-				meshdata.m_Vertices[triangle.v1].position  ,
-				meshdata.m_Vertices[triangle.v2].position  ,
-				meshdata.m_Vertices[triangle.v3].position 
+				meshdata.m_Vertices[triangle.v1]  ,
+				meshdata.m_Vertices[triangle.v2]  ,
+				meshdata.m_Vertices[triangle.v3] 
 			};
 			if (IsInTriangle(point, trianglePositions.data()))
 				return true;
@@ -147,9 +132,9 @@ public:
 				continue;
 
 			std::vector<FVec3> trianglePositions = {
-				meshdata.m_Vertices[triangle.v1].position  ,
-				meshdata.m_Vertices[triangle.v2].position  ,
-				meshdata.m_Vertices[triangle.v3].position
+				meshdata.m_Vertices[triangle.v1]  ,
+				meshdata.m_Vertices[triangle.v2]  ,
+				meshdata.m_Vertices[triangle.v3]
 			};
 			if (IsInTriangle(point, trianglePositions.data())) {
 				continue;
